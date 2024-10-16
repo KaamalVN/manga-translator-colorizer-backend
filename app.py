@@ -4,8 +4,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 import threading
-import re
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
@@ -21,6 +21,16 @@ container_client = blob_service_client.get_container_client(AZURE_CONTAINER_NAME
 # Global dictionary to track download status and colorization status
 download_status = {}
 colorization_status = {}
+
+def generate_sas_url(blob_name):
+    sas_token = generate_blob_sas(
+        account_name=blob_service_client.account_name,
+        container_name=AZURE_CONTAINER_NAME,
+        blob_name=blob_name,
+        permission=BlobSasPermissions(read=True),
+        expiry=datetime.utcnow() + timedelta(hours=1)  # SAS token valid for 1 hour
+    )
+    return f"https://{blob_service_client.account_name}.blob.core.windows.net/{AZURE_CONTAINER_NAME}/{blob_name}?{sas_token}"
 
 def run_colorization(session_id):
     global colorization_status
@@ -112,8 +122,7 @@ def get_images(session_id):
     image_urls = []
     blobs = container_client.list_blobs(name_starts_with=f"{session_id}/")
     for blob in blobs:
-        image_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{AZURE_CONTAINER_NAME}/{blob.name}"
-        image_urls.append(image_url)
+        image_urls.append(generate_sas_url(blob.name))
 
     return jsonify({'images': image_urls})
 
@@ -126,8 +135,7 @@ def get_colorized_images(session_id):
     colorized_image_urls = []
     blobs = container_client.list_blobs(name_starts_with=colorized_dir)
     for blob in blobs:
-        colorized_image_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{AZURE_CONTAINER_NAME}/{blob.name}"
-        colorized_image_urls.append(colorized_image_url)
+        colorized_image_urls.append(generate_sas_url(blob.name))
 
     if not colorized_image_urls:
         return jsonify({'error': f'No colorized images found for session {session_id}'}), 404
