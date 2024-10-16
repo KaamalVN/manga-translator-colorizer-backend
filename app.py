@@ -14,14 +14,12 @@ CORS(app)
 AZURE_CONNECTION_STRING = os.getenv('AZURE_CONNECTION_STRING')
 AZURE_CONTAINER_NAME = "images"
 
-
 # Initialize the BlobServiceClient
 blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
 container_client = blob_service_client.get_container_client(AZURE_CONTAINER_NAME)
 
-# Global dictionary to track download status
+# Global dictionary to track download status and colorization status
 download_status = {}
-# Initialize a global dictionary to store the colorization status for each session
 colorization_status = {}
 
 def run_colorization(session_id):
@@ -33,7 +31,7 @@ def run_colorization(session_id):
         "docker", "run",
         "-v", f"/tmp/uploads:/app/uploads",  # Update to use temp folder for Docker
         "colorizer",
-        "-p", f"/app/uploads/{session_id}"
+        "-p", f"/app/uploads/{session_id}"   # Include session-specific folder in Docker run
     ]
 
     print(f"Running command: {' '.join(docker_command)}")
@@ -70,7 +68,9 @@ def run_gallery_dl(url, session_id):
         for root, _, files in os.walk(session_dir):
             for file_name in files:
                 src_file_path = os.path.join(root, file_name)
-                target_file_path = f"/tmp/uploads/{file_name.rsplit('.', 1)[0]}.jpg"
+                target_file_path = f"/tmp/uploads/{session_id}/{file_name.rsplit('.', 1)[0]}.jpg"
+
+                os.makedirs(f"/tmp/uploads/{session_id}", exist_ok=True)  # Ensure session-specific upload folder exists
 
                 with Image.open(src_file_path) as img:
                     img.convert('RGB').save(target_file_path, 'JPEG')
@@ -98,7 +98,8 @@ def upload_images():
         # Create a blob name
         blob_name = f"{upload_dir}{file.filename}"
         # Save file locally for Docker
-        local_path = f"/tmp/uploads/{file.filename}"
+        local_path = f"/tmp/uploads/{session_id}/{file.filename}"
+        os.makedirs(f"/tmp/uploads/{session_id}", exist_ok=True)  # Ensure session-specific folder exists
         file.save(local_path)
         # Upload to Azure Blob Storage
         upload_to_blob(local_path, blob_name)
