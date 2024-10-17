@@ -12,6 +12,7 @@ CORS(app)
 
 # Azure Blob Storage Configuration
 AZURE_CONNECTION_STRING = os.getenv('AZURE_CONNECTION_STRING')
+AZURE_ACCOUNT_KEY = os.getenv('AZURE_ACCOUNT_KEY')
 AZURE_CONTAINER_NAME = "images"
 
 # Initialize the BlobServiceClient
@@ -27,7 +28,7 @@ def generate_sas_url(blob_name):
         account_name=blob_service_client.account_name,
         container_name=AZURE_CONTAINER_NAME,
         blob_name=blob_name,
-        account_key=AZURE_CONNECTION_STRING,
+        account_key=AZURE_ACCOUNT_KEY,
         permission=BlobSasPermissions(read=True),
         expiry=datetime.utcnow() + timedelta(hours=1)  # SAS token valid for 1 hour
     )
