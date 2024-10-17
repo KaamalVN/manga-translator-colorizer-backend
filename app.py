@@ -27,6 +27,7 @@ def generate_sas_url(blob_name):
         account_name=blob_service_client.account_name,
         container_name=AZURE_CONTAINER_NAME,
         blob_name=blob_name,
+        account_key=AZURE_CONNECTION_STRING,
         permission=BlobSasPermissions(read=True),
         expiry=datetime.utcnow() + timedelta(hours=1)  # SAS token valid for 1 hour
     )
